@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Deploy Docker Application
 
 on:
   push:
@@ -6,10 +6,11 @@ on:
       - main
 
 jobs:
-  docker:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -20,7 +21,28 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t nihar777/flask-demo:v1 .
+        run: |
+          docker build -t nihar777/flask-demo:v1 .
 
       - name: Push Docker image
-        run: docker push nihar777/flask-demo:v1
+        run: |
+          docker push nihar777/flask-demo:v1
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull nihar777/flask-demo:v1
+
+            docker stop flask-demo || true
+            docker rm flask-demo || true
+
+            docker run -d \
+              --name flask-demo \
+              -p 5000:5000 \
+              nihar777/flask-demo:v1
+
+            docker ps
